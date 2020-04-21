@@ -1,7 +1,6 @@
 import * as express from 'express';
 import { Request, Response, Application } from 'express';
 import { database } from './lib/database';
-import { equal } from 'assert';
 
 const app: Application = express();
 app.use(express.json());
@@ -16,6 +15,13 @@ interface User { //csak a kézzel bevitt usereket ellenőrzi, a db-ből behúzot
   created_at?: string;
   updated_at?: string;
 }
+interface Group {
+  id?: number;
+  name: string;
+  description: string;
+  location: string;
+  maximalSize: number;
+}
 
 app.get('/', async (req: Request, res: Response) => {
     res.json({
@@ -26,8 +32,26 @@ app.get('/', async (req: Request, res: Response) => {
 app.get('/user', async (req: Request, res: Response) => {
   const users: Array<User> = await database('users').select();
   res.json(users);
-})
+});
+app.get('/group', async (req: Request, res: Response) => {
+  const groups: Array<Group> = await database('groups').select();
+  res.json(groups);
+});
 
+app.get('/group/:id', async (req: Request, res: Response) => {
+  try {
+  const group: Group = await database('groups').select().where({ id: req.params.id }).first();
+  if (group) {
+    res.json(group);
+  } else {
+    res.sendStatus(404);
+  }
+  }
+  catch (error){
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
 app.get('/user/:id', async (req: Request, res: Response) => {
   try {
   const user: User = await database('users').select().where({ id: req.params.id }).first();
@@ -38,13 +62,12 @@ app.get('/user/:id', async (req: Request, res: Response) => {
   }
   }
   catch (error){
-    console.log(error);
+    console.error(error);
     res.sendStatus(500);
   }
-})
+});
 
 app.post('/user', async (req: Request, res: Response) => {
-
   try {
       const user: User = {
       firstName: req.body.firstName,
@@ -56,25 +79,96 @@ app.post('/user', async (req: Request, res: Response) => {
   res.sendStatus(201);
   }
   catch (error) {
-    console.log(error);
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
+app.post('/group', async (req: Request, res: Response) => {
+  try {
+      const group: Group = {
+      name: req.body.name,
+      description: req.body.description,
+      location: req.body.location,
+      maximalSize: req.body.maximalSize
+    };
+  await database('groups').insert(group);
+  res.sendStatus(201);
+  }
+  catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
+
+
+app.put('/user/:id', async (req: Request, res: Response) => {
+  try {
+    const user: User = await database('users').select().where({ id: req.params.id }).first();
+    if (user) {
+      const newUser: User = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.email,
+        age: req.body.age
+      }
+      await database('users').update(newUser).where({ id: req.params.id });
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch(error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
+app.put('/group/:id', async (req: Request, res: Response) => {
+  try {
+    const group: Group = await database('groups').select().where({ id: req.params.id }).first();
+    if (group) {
+      const newGroup: Group = {
+        name: req.body.name,
+        description: req.body.description,
+        location: req.body.location,
+        maximalSize: req.body.maximalSize
+      }
+      await database('groups').update(newGroup).where({ id: req.params.id });
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch(error) {
+    console.error(error);
     res.sendStatus(500);
   }
 });
 
 app.delete('/user/:id', async (req: Request, res: Response) => {
-  await database('users').delete().where({ id: req.params.id }).first();
-  res.sendStatus(204);
-})
-
-app.put('/user/:id', async (req: Request, res: Response) => {
-  const user: User = {
-    firstName: req.body.firstName,
-    lastName: req.body.lastName,
-    email: req.body.email,
-    age: req.body.age
-  };
-  await database('users').update(user).where( { id: req.params.id });
-  res.sendStatus(201);
+  try {
+    const user: User = await database('users').select().where({ id: req.params.id }).first();
+    if (user) {
+      await database('users').delete().where({ id: req.params.id });
+      res.sendStatus(204);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch(error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
+app.delete('/group/:id', async (req: Request, res: Response) => {
+  try {
+    const group: Group = await database('groups').select().where({ id: req.params.id }).first();
+    if (group) {
+      await database('groups').delete().where({ id: req.params.id });
+      res.sendStatus(204);
+    } else {
+      res.sendStatus(404);
+    }
+  } catch(error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
 });
 
   app.listen(PORT, () => {
